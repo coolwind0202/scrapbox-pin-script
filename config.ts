@@ -1,0 +1,1 @@
+export const INTERVAL_PIN = 5000;
