@@ -25,85 +25,73 @@ export const getActions = (current: Title[], input: Title[]): Action[] => {
 
     const required = current.filter(title => input.includes(title));
 
+    let tmp = [...required];
+
+    /* 
+        入力されたページについて考えます。
+
+        input をループして、漸次的に現在ピン留めしたいページを考えます。
+
+        ページAをピン留めする際は、 tmp (処理に利用するrequiredの暫定的なコピー)を順番に見て、Aより前にあるものを unpin します。
+        すなわち、tmp でループして、Aでないものを unpin します。このとき、 tmp からAでないものを削除します。
+
+        tmp のループで A が見つかった場合は、それ以前の順番通りでない要素は tmp 内には存在しないことが保証できるため、それ以前の要素は順番通りです。
+        つまり、この時点において、A までの tmp と input のスライスは一致することが保証できます。
+        したがって、input の次の要素へループを移します。
+
+        tmp のループ変数が最後まで到達していたら、 A を pin します。
+    */
+
     let n = 0;
     let m = 0;
-    let isLastEqual = false;
+    const pinActions: PinAction[] = [];
 
     while (n < input.length) {
-        while (m < required.length) {
-            const a = input[n];
-            const b = required[m];
+        if (m === tmp.length) {
+            pinActions.push({
+                type: "pin",
+                title: input[n]
+            });
 
-            m++;
+            tmp.push(input[n]);
+
+            console.log(`リストに ${input[n]} を push`);
+            console.log(tmp);
+        }
+
+        while (m < tmp.length) {
+            const a = input[n];
+            const b = tmp[m];
+
+            console.log(`a = ${a}, b = ${b}`)
 
             if (a !== b) {
                 unpinActions.push({
                     type: "unpin",
                     title: b
                 });
-                isLastEqual = false;
+
+                console.log(`リストから ${b} を削除： ${tmp.slice(0, m)} + ${tmp.slice(m + 1)} (n = ${n}, m = ${m})`);
+                
+                tmp = tmp.slice(0, m).concat(tmp.slice(m + 1));
+
+                console.log(tmp);
             } else {
-                isLastEqual = true;
-                break;
-            }
+                /*
+                    m 以前の tmp の要素と、n 以前の input の要素は一致していることが保証できます。
+                */
 
-            /*
-                方針は、 input の要素を順番に見て、その要素と一致しない required の要素は一度 unpin する必要がある。という考えに基づく。
-                たとえば、 
-                    c b a e d
-                と並んだページを
-                    a b c d e
-                と並べたいときは、c と b は一度 unpin する必要があることがわかる。なぜなら、 a の前にこの2つは来てはいけないから。
+                console.log(`${tmp}, ${input}, (n = ${n}, m = ${m})`)
 
-                このことを、 a と一致するまで required の要素を見て、 a と一致したら次は b を使って required の要素を見る、というコードで表現する。
+                console.log(`一致しているか？：${tmp.slice(0, m + 1)}, ${input.slice(0, n + 1)}`)
 
-
-                そして、unpin をする手順は上に書いたルールさえ守れば自由です。問題は pin をする手順です。
-                pin をする手順の作り方は、 unpin した手順を、input に従ってソートすることです。
-                例えば、 c, b, e, d を unpin したなら、 pin する手順は b, c, d, e である必要があります。
-
-                これはスライスを使って表現します。
-
-                上の例では、 input が最後に順番どおりであったのは a でした。
-                現在のコードは、requiredのループが最後まで回るとinputのループも終わって、 n = 1 となるようにかかれています。
-
-                そして、c, b, e, d は unpin されますが、このとき pin の手順は、input.slice(1)に等しいです。
-                これは意味的には、unpin されるもの、すなわち pin すべきものは順番どおりにならなかったものであり、input.slice(n)がこれに対応するからです。
-
-
-                input のうち、required の中に一致する要素が見つかったものは、順番どおりになっている要素が required に存在するということです。
-                これらに対して pin を考える必要はありません。
-
-                しかし、最後まで一致することのなかった要素と、それ以降の input の要素は、あとで pin する必要があります。
-                これは、input.slice(n)に等しいです。
-            */
-        }
-        
-        if (m === required.length) {
-            /*
-                もし、最後に見た required の要素が、 input と一致していたなら、実際に pin が必要なのはその次の要素であるから、n++ は必要。
-                しかし、一致していなかったなら、その input の要素も含めて pin が必要だから、 n++ が必要ない。
-            */
-
-            console.log(input[n], required[m - 1]);
-
-            if (isLastEqual) {
-                console.log("一致した")
                 n++;
+                m++;
             }
-            break;
-        } else {
-            n++;
         }
-
     }
 
     console.log(n);
-
-    const pinActions: PinAction[] = input.slice(n).map(title => ({
-        type: "pin",
-        title  
-    }));
 
     return [...unpinActions, ...pinActions];
 }
